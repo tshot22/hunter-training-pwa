@@ -1,3 +1,4 @@
+console.log('[Hunter] boot v4.4.1');
 /* Hunter Training v4.4 (Final, PWA) */
 const $=id=>document.getElementById(id), H=html=>{const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstChild};
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
