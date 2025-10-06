@@ -56,3 +56,14 @@
   </script>
 </body>
 </html>
+<!-- index.html -->
+<script src="./app.js?v=4.4.1" defer></script>
+<script>
+  // Quick banner if a JS error happens very early
+  window.addEventListener('error', (e) => {
+    const b = document.createElement('div');
+    b.style = 'position:fixed;bottom:0;left:0;right:0;background:#ff5a6b;color:#fff;padding:6px 10px;font:13px system-ui;z-index:9999';
+    b.textContent = 'JS error: ' + (e.message || '(check console)');
+    document.body.appendChild(b);
+  });
+</script>
