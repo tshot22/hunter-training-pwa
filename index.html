@@ -1,288 +1,58 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html><html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hunter Training v4.4</title>
-    <link rel="stylesheet" href="styles.css">
-    <!-- Temporarily removed manifest until icons are fixed -->
-    <!-- <link rel="manifest" href="manifest.json"> -->
-    <meta name="theme-color" content="#1a1a2e">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Hunter Training v4.4</title>
+  <meta name="theme-color" content="#0f1115">
+  <link rel="manifest" href="./manifest.webmanifest?v=4.4">
+  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css?v=4.4">
 </head>
 <body>
-    <div class="app-container">
-        <!-- Header -->
-        <header class="header">
-            <div class="hud">
-                <div class="hud-item">
-                    <span class="hud-label">Gold</span>
-                    <span id="gold" class="hud-value">150</span>
-                </div>
-                <div class="hud-item">
-                    <span class="hud-label">AP</span>
-                    <span id="ap" class="hud-value">45/100</span>
-                </div>
-                <div class="hud-item">
-                    <span class="hud-label">HP</span>
-                    <span id="hp" class="hud-value">120/120</span>
-                </div>
-            </div>
-        </header>
-
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Character Section -->
-            <section id="character-section" class="section active">
-                <div class="character-card">
-                    <div class="character-header">
-                        <h2>Hunter</h2>
-                        <div class="level-badge">Lvl <span id="level">5</span></div>
-                    </div>
-                    <div class="character-stats">
-                        <div class="stat-row">
-                            <span>STR:</span>
-                            <span id="str">12</span>
-                        </div>
-                        <div class="stat-row">
-                            <span>VIT:</span>
-                            <span id="vit">10</span>
-                        </div>
-                        <div class="stat-row">
-                            <span>SPD:</span>
-                            <span id="spd">8</span>
-                        </div>
-                        <div class="stat-row">
-                            <span>DEX:</span>
-                            <span id="dex">14</span>
-                        </div>
-                        <div class="stat-row">
-                            <span>INT:</span>
-                            <span id="int">6</span>
-                        </div>
-                        <div class="stat-row">
-                            <span>SOC:</span>
-                            <span id="soc">4</span>
-                        </div>
-                    </div>
-                    <div class="xp-bar">
-                        <div class="xp-progress" id="xp-progress" style="width: 65%"></div>
-                        <span class="xp-text">XP: <span id="xp-current">650</span>/<span id="xp-max">1000</span></span>
-                    </div>
-                </div>
-                
-                <!-- Activity Tracking -->
-                <div class="activity-card">
-                    <h3>Daily Activity</h3>
-                    <div class="activity-item">
-                        <span>Steps:</span>
-                        <input type="number" id="steps-input" placeholder="Enter steps" value="4800">
-                        <button onclick="logSteps()">Log</button>
-                    </div>
-                    <div class="activity-item">
-                        <span>Water (ml):</span>
-                        <input type="number" id="water-input" placeholder="Enter ml" value="1500">
-                        <button onclick="logWater()">Log</button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Quests Section -->
-            <section id="quests-section" class="section">
-                <h2>Daily Quests</h2>
-                <div class="quests-list">
-                    <div class="quest-item">
-                        <div class="quest-info">
-                            <h3>Steps Challenge</h3>
-                            <p>Walk 8,000 steps</p>
-                            <div class="quest-progress">
-                                <div class="progress-bar">
-                                    <div class="progress" style="width: 60%"></div>
-                                </div>
-                                <span>4,800/8,000</span>
-                            </div>
-                        </div>
-                        <div class="quest-reward">
-                            <span>+150 XP</span>
-                            <span>+50 Gold</span>
-                        </div>
-                        <button class="quest-complete" disabled>Complete</button>
-                    </div>
-                    <div class="quest-item non-negotiable">
-                        <div class="quest-info">
-                            <h3>Daily Push-ups</h3>
-                            <p>Complete 30 push-ups</p>
-                            <div class="quest-progress">
-                                <div class="progress-bar">
-                                    <div class="progress" style="width: 100%"></div>
-                                </div>
-                                <span>30/30</span>
-                            </div>
-                        </div>
-                        <div class="quest-reward">
-                            <span>+100 XP</span>
-                            <span>+25 Gold</span>
-                        </div>
-                        <button class="quest-complete">Complete</button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Dungeons Section -->
-            <section id="dungeons-section" class="section">
-                <h2>Dungeons</h2>
-                <div class="dungeons-grid">
-                    <div class="dungeon-card" data-tier="1">
-                        <h3>Tier I - Goblin Cave</h3>
-                        <p>Recommended: Lvl 1+</p>
-                        <p>AP Cost: 10</p>
-                        <button class="dungeon-btn" onclick="startDungeon(1)">Enter</button>
-                    </div>
-                    <div class="dungeon-card" data-tier="2">
-                        <h3>Tier II - Spider Lair</h3>
-                        <p>Recommended: Lvl 3+</p>
-                        <p>AP Cost: 15</p>
-                        <button class="dungeon-btn" onclick="startDungeon(2)">Enter</button>
-                    </div>
-                    <div class="dungeon-card" data-tier="3">
-                        <h3>Tier III - Orc Fortress</h3>
-                        <p>Recommended: Lvl 5+</p>
-                        <p>AP Cost: 20</p>
-                        <button class="dungeon-btn" onclick="startDungeon(3)">Enter</button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Raid Section -->
-            <section id="raid-section" class="section">
-                <div class="raid-header">
-                    <h2>Dungeon Raid</h2>
-                    <div class="raid-timer" id="raid-timer">10:00</div>
-                </div>
-                <div class="raid-arena">
-                    <div class="boss-container">
-                        <div class="boss" id="boss">
-                            <div class="boss-health">
-                                <div class="health-bar">
-                                    <div class="health-progress" id="boss-health" style="width: 100%"></div>
-                                </div>
-                                <span id="boss-info">Goblin King - 500/500 HP</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="player-area">
-                        <div class="attack-zone" id="attack-zone">
-                            <div class="projectile" id="projectile">⚔️</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="raid-controls">
-                    <button id="attack-btn" class="attack-btn">Attack</button>
-                    <button id="flee-btn" class="flee-btn">Flee</button>
-                </div>
-            </section>
-
-            <!-- Inventory Section -->
-            <section id="inventory-section" class="section">
-                <h2>Equipment</h2>
-                <div class="inventory-grid">
-                    <div class="equipment-slot">
-                        <h3>Weapon</h3>
-                        <div class="item legendary" id="weapon-slot">Iron Sword</div>
-                    </div>
-                    <div class="equipment-slot">
-                        <h3>Boots</h3>
-                        <div class="item rare" id="boots-slot">Leather Boots</div>
-                    </div>
-                    <div class="equipment-slot">
-                        <h3>Tome</h3>
-                        <div class="item common" id="tome-slot">Basic Tome</div>
-                    </div>
-                    <div class="equipment-slot">
-                        <h3>Banner</h3>
-                        <div class="item empty" id="banner-slot">Empty</div>
-                    </div>
-                </div>
-                
-                <div class="inventory-actions">
-                    <button onclick="openShop()" class="shop-btn">Shop</button>
-                    <button onclick="sellDuplicates()" class="sell-btn">Sell Duplicates</button>
-                </div>
-            </section>
-        </main>
-
-        <!-- Navigation -->
-        <nav class="bottom-nav">
-            <button class="nav-btn active" data-section="character-section">
-                <span>👤</span>
-                <span>Character</span>
-            </button>
-            <button class="nav-btn" data-section="quests-section">
-                <span>📋</span>
-                <span>Quests</span>
-            </button>
-            <button class="nav-btn" data-section="dungeons-section">
-                <span>🏰</span>
-                <span>Dungeons</span>
-            </button>
-            <button class="nav-btn" data-section="inventory-section">
-                <span>🎒</span>
-                <span>Gear</span>
-            </button>
-        </nav>
-
-        <!-- Raid Results Modal -->
-        <div id="raid-results" class="modal">
-            <div class="modal-content">
-                <h2>Raid Complete!</h2>
-                <div class="rewards" id="raid-rewards">
-                    <div class="reward-item">
-                        <span>XP:</span>
-                        <span>+150</span>
-                    </div>
-                    <div class="reward-item">
-                        <span>Gold:</span>
-                        <span>+75</span>
-                    </div>
-                    <div class="reward-item">
-                        <span>Loot:</span>
-                        <span>Health Potion</span>
-                    </div>
-                </div>
-                <button class="close-btn" onclick="closeResults()">Continue</button>
-            </div>
-        </div>
-
-        <!-- Shop Modal -->
-        <div id="shop-modal" class="modal">
-            <div class="modal-content">
-                <h2>Shop</h2>
-                <div class="shop-items" id="shop-items">
-                    <div class="shop-item">
-                        <div class="shop-item-info">
-                            <div class="shop-item-name rare">Steel Sword</div>
-                            <div class="shop-item-stats">weapon • rare</div>
-                        </div>
-                        <div class="shop-item-right">
-                            <div class="shop-item-price">100 Gold</div>
-                            <button class="buy-btn" onclick="buyItem(1)">Buy</button>
-                        </div>
-                    </div>
-                    <div class="shop-item">
-                        <div class="shop-item-info">
-                            <div class="shop-item-name common">Health Potion</div>
-                            <div class="shop-item-stats">consumable • common</div>
-                        </div>
-                        <div class="shop-item-right">
-                            <div class="shop-item-price">25 Gold</div>
-                            <button class="buy-btn" onclick="buyItem(2)">Buy</button>
-                        </div>
-                    </div>
-                </div>
-                <button class="close-btn" onclick="closeShop()">Close</button>
-            </div>
-        </div>
+  <header class="topbar">
+    <div class="brand">🗡️ Hunter Training v4.4</div>
+    <div class="header-stats">
+      <div>Gold: <strong id="GOLD_HDR">0</strong></div>
+      <div>AP: <strong id="AP_HDR">0</strong></div>
+      <div>HP: <strong id="HP_HDR">0</strong></div>
     </div>
+  </header>
 
-    <script src="app.js"></script>
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="status">Status</button>
+    <button class="tab" data-tab="log">Log</button>
+    <button class="tab" data-tab="quests">Quests</button>
+    <button class="tab" data-tab="dungeon">Dungeon</button>
+    <button class="tab" data-tab="raid">Raid</button>
+    <button class="tab" data-tab="shop">Shop</button>
+    <button class="tab" data-tab="inventory">Inventory</button>
+    <button class="tab" data-tab="party">Party</button>
+    <button class="tab" data-tab="settings">Settings</button>
+  </nav>
+
+  <main id="appRoot"></main>
+  <div id="toast"></div>
+
+  <!-- End Screen Overlay -->
+  <div id="overlay" class="overlay" hidden>
+    <div class="overlay-card">
+      <div class="title">Raid Results</div>
+      <div id="endDetails" class="list"></div>
+      <div class="row" style="margin-top:12px; justify-content:flex-end;">
+        <button id="closeOverlay" class="btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js?v=4.4"></script>
+  <script>
+    // Quick surface error banner on mobile if something breaks early
+    window.addEventListener('error', (e) => {
+      const b = document.createElement('div');
+      b.style = 'position:fixed;bottom:0;left:0;right:0;background:#ff5a6b;color:#fff;padding:6px 10px;font:13px system-ui;z-index:9999';
+      b.textContent = 'JS error: ' + (e.message || '(check console)');
+      document.body.appendChild(b);
+    });
+  </script>
 </body>
-  </html>
+</html>
