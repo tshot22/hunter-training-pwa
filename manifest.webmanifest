@@ -1,0 +1,16 @@
+{
+  "name": "Hunter Training v4.4",
+  "short_name": "Hunter v4.4",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0b0d12",
+  "theme_color": "#0f1115",
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
