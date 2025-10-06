@@ -1,5 +1,6 @@
-console.log('[Hunter] boot v4.4.1');
+
 /* Hunter Training v4.4 (Final, PWA) */
+console.log('[Hunter] boot v4.4.1');
 const $=id=>document.getElementById(id), H=html=>{const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstChild};
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const RESTORE_HOUR=2, XP_PER_10_MIN=15, EXTRA_SHOT_COST_AP=1000, STALE_RAID_MS=10*60*1000;
