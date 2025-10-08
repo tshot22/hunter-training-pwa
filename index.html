@@ -1,12 +1,26 @@
-<!doctype html><html lang="en">
+<!doctype html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Hunter Training v4.4</title>
   <meta name="theme-color" content="#0f1115">
+  <meta name="description" content="Turn real-world activity into RPG character progression - PWA">
+  
+  <!-- PWA Manifest -->
   <link rel="manifest" href="./manifest.webmanifest?v=4.4">
+  
+  <!-- Icons -->
   <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./assets/icon-192.png">
+  
+  <!-- Styles -->
   <link rel="stylesheet" href="./styles.css?v=4.4">
+  
+  <!-- PWA iOS Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Hunter Training">
 </head>
 <body>
   <header class="topbar">
@@ -30,8 +44,15 @@
     <button class="tab" data-tab="settings">Settings</button>
   </nav>
 
-  <main id="appRoot"></main>
-  <div id="toast"></div>
+  <main id="appRoot">
+    <!-- App content will be rendered here by app.js -->
+    <div style="padding: 20px; text-align: center; color: var(--text-secondary);">
+      Loading Hunter Training...
+    </div>
+  </main>
+
+  <!-- Toast Notifications -->
+  <div id="toast" class="toast"></div>
 
   <!-- End Screen Overlay -->
   <div id="overlay" class="overlay" hidden>
@@ -44,26 +65,60 @@
     </div>
   </div>
 
-  <script src="./app.js?v=4.4"></script>
+  <!-- Single Script Tag - Fixed -->
+  <script src="./app.js?v=4.4.1"></script>
+  
+  <!-- Error Handling -->
   <script>
-    // Quick surface error banner on mobile if something breaks early
+    // Global error handler
     window.addEventListener('error', (e) => {
-      const b = document.createElement('div');
-      b.style = 'position:fixed;bottom:0;left:0;right:0;background:#ff5a6b;color:#fff;padding:6px 10px;font:13px system-ui;z-index:9999';
-      b.textContent = 'JS error: ' + (e.message || '(check console)');
-      document.body.appendChild(b);
+      console.error('Global error:', e.error);
+      
+      // Only show banner if app hasn't loaded properly
+      if (!window.game) {
+        const banner = document.createElement('div');
+        banner.style.cssText = `
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: #ff5a6b;
+          color: #fff;
+          padding: 8px 12px;
+          font: 13px system-ui;
+          z-index: 9999;
+          text-align: center;
+        `;
+        banner.textContent = 'Loading error - check console (F12)';
+        document.body.appendChild(banner);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+          if (banner.parentNode) {
+            banner.parentNode.removeChild(banner);
+          }
+        }, 5000);
+      }
     });
+
+    // Handle unhandled promise rejections
+    window.addEventListener('unhandledrejection', (e) => {
+      console.error('Unhandled promise rejection:', e.reason);
+      e.preventDefault();
+    });
+
+    // Service Worker Registration for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(registration => {
+            console.log('SW registered: ', registration);
+          })
+          .catch(registrationError => {
+            console.log('SW registration failed: ', registrationError);
+          });
+      });
+    }
   </script>
 </body>
 </html>
-<!-- index.html -->
-<script src="./app.js?v=4.4.1" defer></script>
-<script>
-  // Quick banner if a JS error happens very early
-  window.addEventListener('error', (e) => {
-    const b = document.createElement('div');
-    b.style = 'position:fixed;bottom:0;left:0;right:0;background:#ff5a6b;color:#fff;padding:6px 10px;font:13px system-ui;z-index:9999';
-    b.textContent = 'JS error: ' + (e.message || '(check console)');
-    document.body.appendChild(b);
-  });
-</script>
