@@ -1,10 +1,9 @@
-
-/* Hunter Training v4.4 (Final, PWA) */
-console.log('[Hunter] boot v4.4.1');
+/* Hunter Training v4.4 (Final, PWA) - FIXED */
+console.log('[Hunter] boot v4.4.1 - FIXED');
 const $=id=>document.getElementById(id), H=html=>{const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstChild};
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const RESTORE_HOUR=2, XP_PER_10_MIN=15, EXTRA_SHOT_COST_AP=1000, STALE_RAID_MS=10*60*1000;
-const CACHE='hunter-v4.4-3'; // increment this
+const CACHE='hunter-v4.4-4'; // increment this
 
 (function(){const t=localStorage.getItem('theme')||'dark'; if(t==='light') document.documentElement.classList.add('light');})();
 const LOAD=()=>{for(const k of ['htv3full','htv3full_fixed','htv4']){const v=localStorage.getItem(k);if(v){k!=='htv4'&&localStorage.setItem('htv4',v);try{return JSON.parse(v)}catch{}}}return null}
@@ -32,15 +31,56 @@ function buildUI(){const r=$('appRoot'); r.innerHTML=`
 <section id="status" class="panel active">
   <div class="grid"><div class="card">
     <div class="row">
-      <div class="avatar-wrap"><svg viewBox="0 0 200 260" width="140" height="182"><defs><linearGradient id="skin" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#f2d2b6"/><stop offset="1" stop-color="#ddb08a"/></linearGradient></defs><g><ellipse cx="100" cy="130" rx="28" ry="42" fill="url(#skin)" stroke="#855" stroke-width="2"/></g></svg></div>
-      <div><div class="title" id="charName"></div><div class="muted" id="charClass"></div><div class="hpbar"><div class="hpbar-fill" id="hpbar_fill"></div></div><div class="muted small"><span id="HP_TXT"></span> HP</div></div>
+      <div class="avatar-wrap" id="avatarContainer">
+        <svg viewBox="0 0 200 260" width="140" height="182" id="avatarSVG">
+          <defs>
+            <linearGradient id="skin" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#f2d2b6"/><stop offset="1" stop-color="#ddb08a"/></linearGradient>
+            <linearGradient id="weaponGlow" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#ffd700"/><stop offset="1" stop-color="#ff6b6b"/></linearGradient>
+          </defs>
+          <g id="avatarBase">
+            <ellipse cx="100" cy="130" rx="28" ry="42" fill="url(#skin)" stroke="#855" stroke-width="2"/>
+          </g>
+          <g id="equipmentOverlay"></g>
+        </svg>
+        <div class="equipment-status" id="equipmentStatus"></div>
+      </div>
+      <div><div class="title" id="charName"></div><div class="muted" id="charClass"></div>
+        <div class="hpbar"><div class="hpbar-fill" id="hpbar_fill"></div></div>
+        <div class="muted small"><span id="HP_TXT"></span> HP</div>
+      </div>
     </div>
+    
+    <!-- STAT POINTS ALLOCATION -->
+    <div id="statPointsSection" style="display:none; margin:12px 0; padding:12px; background:var(--accent); border-radius:8px;">
+      <div class="title" style="font-size:14px; margin-bottom:8px;">📊 Stat Points: <span id="statPointsCount">0</span></div>
+      <div class="row" style="flex-wrap:wrap; gap:6px; justify-content:center;">
+        ${['STR','VIT','SPD','DEX','INT','SOC'].map(stat => 
+          `<button class="stat-btn" data-stat="${stat}">+1 ${stat}</button>`
+        ).join('')}
+      </div>
+    </div>
+    
     <div class="progress" style="margin:8px 0;"><div id="xpBar" class="progress-fill"></div></div>
     <div class="muted small">Level <span id="level"></span> • <span id="xp"></span>/<span id="xpToNext"></span> XP</div>
+    
     <div class="stats">${['STR','VIT','SPD','DEX','INT','SOC'].map(k=>`<div class="stat"><span>${k}</span><strong id="${k}">0</strong></div>`).join('')}</div>
-    <div class="list" style="margin-top:8px"><div class="item"><div>Gold</div><strong id="GOLD">0</strong></div><div class="item"><div>AP</div><strong id="AP">0</strong></div><div class="item"><div>Points</div><strong id="points">0</strong></div></div>
+    
+    <div class="list" style="margin-top:8px">
+      <div class="item"><div>Gold</div><strong id="GOLD">0</strong></div>
+      <div class="item"><div>AP</div><strong id="AP">0</strong></div>
+      <div class="item"><div>Points</div><strong id="points">0</strong></div>
+    </div>
   </div>
-  <div class="card"><div class="title">Daily Summary</div><div>Steps today: <strong id="todaySteps">0</strong></div><div>Workout min: <strong id="todayMins">0</strong></div><div>Water: <strong id="todayWater">0</strong> / <span id="waterGoal">2000</span> ml</div></div>
+  
+  <div class="card">
+    <div class="title">🎯 Current Equipment</div>
+    <div id="currentEquipment" class="list"></div>
+  </div>
+  
+  <div class="card"><div class="title">📅 Daily Summary</div>
+    <div>Steps today: <strong id="todaySteps">0</strong></div>
+    <div>Workout min: <strong id="todayMins">0</strong></div>
+    <div>Water: <strong id="todayWater">0</strong> / <span id="waterGoal">2000</span> ml</div>
   </div>
 </section>
 
@@ -105,6 +145,18 @@ function buildUI(){const r=$('appRoot'); r.innerHTML=`
   </div>
   <div class="muted small">Switch between light and dark theme. Stored locally.</div>
 </div></section>
+
+<!-- Results Overlay -->
+<div id="overlay" class="overlay" hidden>
+  <div class="overlay-content">
+    <div class="title">Raid Results</div>
+    <div id="endDetails" class="list"></div>
+    <button id="closeOverlay" class="btn" style="margin-top:16px">Continue</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
 `;}
 
 // --- Data tables
@@ -132,6 +184,85 @@ const BASE_DUNGEONS=[
 function tierScale(t){ const mult=[0,1,1.6,2.3,3.2,4.5][t]||1; const reward=[0,1,1.4,1.9,2.6,3.6][t]||1; return {hp:mult,def:1+0.12*(t-1), ap:1+0.5*(t-1), rew:reward}; }
 function buildDungeonList(){ const tier=+($('tierSelect')?.value||1); const s=tierScale(tier); return BASE_DUNGEONS.map(d=>({ id:`${d.id}_t${tier}`, name:`${d.name} — Tier ${tier}`, entryAP:Math.round(d.baseAP*s.ap), boss:{hp:Math.round(d.base.hp*s.hp), def:Math.round(d.base.def*s.def)}, reward:{xp:Math.round(d.reward.xp*s.rew), gold:Math.round(d.reward.gold*s.rew)} })); }
 
+// --- NEW: Stat Allocation System
+function increaseStat(stat) {
+    if (state.points > 0 && state.stats[stat] < 99) {
+        state.stats[stat]++;
+        state.points--;
+        
+        // Recalculate HP if VIT increased
+        if (stat === 'VIT') {
+            const dv = derived();
+            state.hp = Math.min(state.hp, dv.HP); // Keep current HP, cap at new max
+        }
+        
+        save();
+        render();
+        toast(`${stat} increased to ${state.stats[stat]}!`);
+    }
+}
+
+// --- NEW: Avatar with Equipment Display
+function updateAvatar() {
+    const overlay = document.getElementById('equipmentOverlay');
+    const statusEl = document.getElementById('equipmentStatus');
+    if (!overlay || !statusEl) return;
+    
+    // Clear previous equipment
+    overlay.innerHTML = '';
+    
+    // Add weapon if equipped
+    const weapon = state.equips.weapon ? state.inventory.find(x => x.id === state.equips.weapon) : null;
+    if (weapon) {
+        const weaponType = weapon.name.toLowerCase();
+        let weaponSVG = '';
+        
+        if (weaponType.includes('sword')) {
+            weaponSVG = `<rect x="85" y="80" width="30" height="8" fill="url(#weaponGlow)" transform="rotate(45 100 84)"/>`;
+        } else if (weaponType.includes('bow')) {
+            weaponSVG = `<path d="M85,90 Q100,70 115,90" stroke="url(#weaponGlow)" stroke-width="3" fill="none"/>`;
+        } else if (weaponType.includes('staff')) {
+            weaponSVG = `<rect x="98" y="60" width="4" height="40" fill="url(#weaponGlow)"/>`;
+        } else {
+            weaponSVG = `<rect x="95" y="80" width="10" height="6" fill="url(#weaponGlow)"/>`;
+        }
+        
+        overlay.innerHTML += weaponSVG;
+    }
+    
+    // Update equipment status text
+    const slots = ['weapon', 'boots', 'tome', 'banner'];
+    const equippedItems = slots.map(slot => {
+        const item = state.equips[slot] ? state.inventory.find(x => x.id === state.equips[slot]) : null;
+        return item ? `${slot}: ${item.name}` : `${slot}: Empty`;
+    });
+    
+    statusEl.textContent = equippedItems.join(' • ');
+}
+
+// --- NEW: Current Equipment Display
+function renderCurrentEquipment() {
+    const container = document.getElementById('currentEquipment');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    const slots = [
+        { key: 'weapon', label: '⚔️ Weapon' },
+        { key: 'boots', label: '👢 Boots' },
+        { key: 'tome', label: '📖 Tome' },
+        { key: 'banner', label: '🚩 Banner' }
+    ];
+    
+    slots.forEach(slot => {
+        const item = state.equips[slot.key] ? state.inventory.find(x => x.id === state.equips[slot.key]) : null;
+        const el = H(`<div class="item">
+            <div>${slot.label}</div>
+            <div class="muted small">${item ? item.name : 'Empty'}</div>
+        </div>`);
+        container.append(el);
+    });
+}
+
 // --- Quests
 function renderQuests(){ const list=$('questList'); if(!list) return; list.innerHTML='';
   const base=Math.max(6000,6000+state.level*200), mins=20+Math.floor(state.level/2)*5, water=Number(localStorage.getItem('waterGoal')||2000);
@@ -154,6 +285,23 @@ function render(){ const d=derived();
   setText('todaySteps',state.today.steps); setText('todayMins',state.today.mins); setText('todayWater',state.today.water); setText('GOLD_SHOP',state.gold);
   const cls=$('classSelect'); if(cls) cls.value=state.class;
   const th=$('themeSelect'); if(th) th.value=(document.documentElement.classList.contains('light')?'light':'dark');
+  
+  // NEW: Stat Points UI
+  const statPointsSection = document.getElementById('statPointsSection');
+  const statPointsCount = document.getElementById('statPointsCount');
+  if (statPointsSection && statPointsCount) {
+      if (state.points > 0) {
+          statPointsSection.style.display = 'block';
+          statPointsCount.textContent = state.points;
+      } else {
+          statPointsSection.style.display = 'none';
+      }
+  }
+  
+  // NEW: Update avatar and equipment displays
+  updateAvatar();
+  renderCurrentEquipment();
+  
   renderQuests(); renderDungeons(); renderShop(); renderInventory(); renderConsumables(); renderFriends();
 }
 function gainXP(n){ state.xp+=n; while(state.xp>=state.xpToNext){ state.xp-=state.xpToNext; state.level+=1; state.points+=3; state.xpToNext=Math.round(state.xpToNext*1.2+35);} save(); render(); }
@@ -192,14 +340,14 @@ function enterRaid(id){ const d=DUNGEONS.find(x=>x.id===id); if(state.ap<d.entry
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active')); document.querySelector('.tab[data-tab="raid"]').classList.add('active'); $('raid').classList.add('active');
   setupCanvas(); renderHUD(); setRaidProgress(0);
 }
-function setupCanvas(){ C=$('raidCanvas'); if(!C) return; CTX=C.getContext('2d'); mouse={down:false,sx:60,sy=C.height-30,x:60,y:C.height-30}; obstacles=[{x:200,y:150,w:20,h:60},{x:260,y:100,w:16,h:40}]; weakRect={x:C.width-80,y:70,w:16,h:16};
+function setupCanvas(){ C=$('raidCanvas'); if(!C) return; CTX=C.getContext('2d'); mouse={down:false,sx:60,sy:C.height-30,x:60,y:C.height-30}; obstacles=[{x:200,y:150,w:20,h:60},{x:260,y:100,w:16,h:40}]; weakRect={x:C.width-80,y:70,w:16,h:16};
   C.onmousedown=e=>{ const rr=C.getBoundingClientRect(); mouse.down=true; mouse.x=e.clientX-rr.left; mouse.y=e.clientY-rr.top; };
   C.onmousemove=e=>{ const rr=C.getBoundingClientRect(); mouse.x=e.clientX-rr.left; mouse.y=e.clientY-rr.top; if(mouse.down) draw(); };
   C.onmouseup=()=>{ if(mouse.down){ mouse.down=false; launch(); } }; draw();
 }
 function renderHUD(){ const hud=$('raidHUD'); if(!hud) return; hud.textContent=`Shots: ${state.raid.shots}/${state.raid.maxShots} • Boss HP: ${state.raid.bossHP}/${state.raid.bossHPMax}`; }
 function launch(){ if(state.raid.shots>=state.raid.maxShots) return toast('No shots left'); const dx=mouse.sx-mouse.x, dy=mouse.sy-mouse.y; const p=Math.min(80,Math.hypot(dx,dy)); if(p<6) return toast('Pull further'); const a=Math.atan2(dy,dx); const base=projectile();
-  const dv=derived(); const speed=(-p/2.1); proj={x:mouse.sx,y:mouse.sy,vx:Math.cos(a)*speed,vy=Math.sin(a)*speed,r:7,atk:dv.ATK+(base.dmg||10),mass=base.mass||1,shape=base.shape||'ball',props:base}; state.raid.shots++; shotStart=performance.now(); setRaidProgress(5); animate(); renderHUD();
+  const dv=derived(); const speed=(-p/2.1); proj={x:mouse.sx,y:mouse.sy,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:7,atk:dv.ATK+(base.dmg||10),mass:base.mass||1,shape:base.shape||'ball',props:base}; state.raid.shots++; shotStart=performance.now(); setRaidProgress(5); animate(); renderHUD();
 }
 function animate(){ cancelAnimationFrame(raf); const step=(t)=>{ updatePhysics(); if(shotStart){ const elapsed = Math.min(2000, t - shotStart); setRaidProgress(5 + (elapsed/2000)*90); } draw(); raf=requestAnimationFrame(step); }; raf=requestAnimationFrame(step); }
 function updatePhysics(){ if(!proj) return; proj.vy+=0.38*proj.mass; proj.x+=proj.vx; proj.y+=proj.vy; if(proj.y>C.height-12){ proj.y=C.height-12; proj.vy*=-0.35; proj.vx*=0.75; if(Math.abs(proj.vx)<0.4) { onShotEnd(0); proj=null; } } if(proj.x<0||proj.x>C.width){ proj=null; onShotEnd(0); return; }
@@ -245,7 +393,17 @@ function finishRaid(ok){ const d=buildDungeonList().find(x=>x.id===state.raid.du
 }
 
 // --- Inputs & settings
-function hookInputs(){ document.querySelectorAll('.tab').forEach(b=> b.onclick=()=>{ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active')); b.classList.add('active'); $(b.dataset.tab).classList.add('active'); });
+function hookInputs(){ 
+  document.querySelectorAll('.tab').forEach(b=> b.onclick=()=>{ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active')); b.classList.add('active'); $(b.dataset.tab).classList.add('active'); });
+  
+  // NEW: Stat allocation buttons
+  document.querySelectorAll('.stat-btn').forEach(btn => {
+    btn.onclick = () => {
+      const stat = btn.getAttribute('data-stat');
+      increaseStat(stat);
+    };
+  });
+  
   $('addStepsBtn').onclick=()=>{ const n=+($('stepsInput').value||0); state.today.steps+=n; state.ap+=n; save(); render(); toast('Steps logged'); };
   $('addWorkoutBtn').onclick=()=>{ const m=+($('minutesInput').value||0); state.today.mins+=m; const chunks=Math.floor(m/10); if(chunks>0) gainXP(chunks*XP_PER_10_MIN); save(); render(); toast('Workout logged'); };
   $('addWaterBtn').onclick=()=>{ state.today.water+=+($('waterInput').value||0); save(); render(); toast('Hydration logged'); };
