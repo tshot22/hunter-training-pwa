@@ -1,5 +1,5 @@
 /* Hunter Training v4.4 (Final, PWA) - FIXED */
-console.log('[Hunter] boot v4.4.1 - FIXED');
+console.log('[Hunter] boot v4.4.1 - RAID FIXED');
 const $=id=>document.getElementById(id), H=html=>{const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstChild};
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const RESTORE_HOUR=2, XP_PER_10_MIN=15, EXTRA_SHOT_COST_AP=1000, STALE_RAID_MS=10*60*1000;
@@ -329,7 +329,7 @@ function renderConsumables(){ const L=$('consumableList'); if(!L) return; L.inne
 // --- Friends
 function renderFriends(){ const list=$('friendList'); if(!list) return; list.innerHTML=''; if(!state.friends.length) list.append(H(`<div class="muted small">No friends yet</div>`)); state.friends.forEach(f=>{ const el=H(`<div class="item"><div>${f.name} <span class="muted small">(${f.id})</span></div><label class="muted small"><input type="checkbox" data-auto="${f.id}" ${f.autoRaid?'checked':''}> Auto-raid</label></div>`); list.append(el); }); list.querySelectorAll('[data-auto]').forEach(cb=> cb.onchange=()=>{ const f=state.friends.find(x=>x.id===cb.getAttribute('data-auto')); f.autoRaid=cb.checked; save(); renderFriends(); }); const auto=$('autoRaidList'); auto.innerHTML=''; state.friends.filter(f=>f.autoRaid).forEach(f=> auto.append(H(`<div class="item"><div>${f.name}</div><div class="muted small">Auto</div></div>`))); }
 
-// --- Raid (physics mini-game)
+// --- Raid (physics mini-game) - FIXED VERSION
 let C,CTX,mouse,proj,raf; const gravity=0.38; let DUNGEONS=[]; let shotStart=0;
 let obstacles=[],weakRect=null;
 
@@ -340,44 +340,330 @@ function enterRaid(id){ const d=DUNGEONS.find(x=>x.id===id); if(state.ap<d.entry
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active')); document.querySelector('.tab[data-tab="raid"]').classList.add('active'); $('raid').classList.add('active');
   setupCanvas(); renderHUD(); setRaidProgress(0);
 }
-function setupCanvas(){ C=$('raidCanvas'); if(!C) return; CTX=C.getContext('2d'); mouse={down:false,sx:60,sy:C.height-30,x:60,y:C.height-30}; obstacles=[{x:200,y:150,w:20,h:60},{x:260,y:100,w:16,h:40}]; weakRect={x:C.width-80,y:70,w:16,h:16};
-  C.onmousedown=e=>{ const rr=C.getBoundingClientRect(); mouse.down=true; mouse.x=e.clientX-rr.left; mouse.y=e.clientY-rr.top; };
-  C.onmousemove=e=>{ const rr=C.getBoundingClientRect(); mouse.x=e.clientX-rr.left; mouse.y=e.clientY-rr.top; if(mouse.down) draw(); };
-  C.onmouseup=()=>{ if(mouse.down){ mouse.down=false; launch(); } }; draw();
+
+// FIXED: Canvas setup with proper event handling
+function setupCanvas(){ 
+  C=$('raidCanvas'); 
+  if(!C) {
+    console.error('Canvas element not found!');
+    return;
+  }
+  
+  CTX=C.getContext('2d'); 
+  if(!CTX) {
+    console.error('Canvas context not supported!');
+    return;
+  }
+  
+  mouse={down:false,sx:60,sy:C.height-30,x:60,y:C.height-30}; 
+  obstacles=[{x:200,y:150,w:20,h:60},{x:260,y:100,w:16,h:40}]; 
+  weakRect={x:C.width-80,y:70,w:16,h:16};
+  
+  // Mouse events
+  C.onmousedown=e=>{ 
+    const rr=C.getBoundingClientRect(); 
+    mouse.down=true; 
+    mouse.x=e.clientX-rr.left; 
+    mouse.y=e.clientY-rr.top; 
+    draw(); 
+  };
+  
+  C.onmousemove=e=>{ 
+    const rr=C.getBoundingClientRect(); 
+    mouse.x=e.clientX-rr.left; 
+    mouse.y=e.clientY-rr.top; 
+    if(mouse.down) draw(); 
+  };
+  
+  C.onmouseup=()=>{ 
+    if(mouse.down){ 
+      mouse.down=false; 
+      launch(); 
+    } 
+  }; 
+  
+  // Touch events for mobile
+  C.ontouchstart=e=>{
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rr=C.getBoundingClientRect();
+    mouse.down=true;
+    mouse.x=touch.clientX-rr.left;
+    mouse.y=touch.clientY-rr.top;
+    draw();
+  };
+  
+  C.ontouchmove=e=>{
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rr=C.getBoundingClientRect();
+    mouse.x=touch.clientX-rr.left;
+    mouse.y=touch.clientY-rr.top;
+    if(mouse.down) draw();
+  };
+  
+  C.ontouchend=()=>{
+    if(mouse.down){
+      mouse.down=false;
+      launch();
+    }
+  };
+  
+  draw(); 
 }
+
 function renderHUD(){ const hud=$('raidHUD'); if(!hud) return; hud.textContent=`Shots: ${state.raid.shots}/${state.raid.maxShots} • Boss HP: ${state.raid.bossHP}/${state.raid.bossHPMax}`; }
-function launch(){ if(state.raid.shots>=state.raid.maxShots) return toast('No shots left'); const dx=mouse.sx-mouse.x, dy=mouse.sy-mouse.y; const p=Math.min(80,Math.hypot(dx,dy)); if(p<6) return toast('Pull further'); const a=Math.atan2(dy,dx); const base=projectile();
-  const dv=derived(); const speed=(-p/2.1); proj={x:mouse.sx,y:mouse.sy,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:7,atk:dv.ATK+(base.dmg||10),mass:base.mass||1,shape:base.shape||'ball',props:base}; state.raid.shots++; shotStart=performance.now(); setRaidProgress(5); animate(); renderHUD();
+
+// FIXED: Launch function with proper physics
+function launch(){ 
+  if(state.raid.shots>=state.raid.maxShots) {
+    toast('No shots left'); 
+    return;
+  }
+  
+  const dx=mouse.sx-mouse.x, dy=mouse.sy-mouse.y; 
+  const power=Math.min(80,Math.hypot(dx,dy)); 
+  
+  if(power<6) {
+    toast('Pull further back'); 
+    return;
+  }
+  
+  const angle=Math.atan2(dy,dx); 
+  const base=projectile();
+  const dv=derived(); 
+  
+  const speed=(-power/2.1); 
+  proj={
+    x:mouse.sx,
+    y:mouse.sy,
+    vx:Math.cos(angle)*speed,
+    vy:Math.sin(angle)*speed,
+    r:7,
+    atk:dv.ATK+(base.dmg||10),
+    mass:base.mass||1,
+    shape:base.shape||'ball',
+    props:base
+  }; 
+  
+  state.raid.shots++; 
+  shotStart=performance.now(); 
+  setRaidProgress(5); 
+  animate(); 
+  renderHUD();
 }
-function animate(){ cancelAnimationFrame(raf); const step=(t)=>{ updatePhysics(); if(shotStart){ const elapsed = Math.min(2000, t - shotStart); setRaidProgress(5 + (elapsed/2000)*90); } draw(); raf=requestAnimationFrame(step); }; raf=requestAnimationFrame(step); }
-function updatePhysics(){ if(!proj) return; proj.vy+=0.38*proj.mass; proj.x+=proj.vx; proj.y+=proj.vy; if(proj.y>C.height-12){ proj.y=C.height-12; proj.vy*=-0.35; proj.vx*=0.75; if(Math.abs(proj.vx)<0.4) { onShotEnd(0); proj=null; } } if(proj.x<0||proj.x>C.width){ proj=null; onShotEnd(0); return; }
-  for(const o of obstacles){ if(proj.x>o.x&&proj.x<o.x+o.w&&proj.y>o.y&&proj.y<o.y+o.h){ proj.vx*=-0.5; proj.vy*=-0.3; } }
-  const bx=C.width-90,by=60,bw=60,bh=120; if(proj.x>bx&&proj.y>by&&proj.x<bx+bw&&proj.y<by+bh){ const dv=derived(), base=projectile(); const impact=Math.min(100,Math.hypot(proj.vx,proj.vy)*2+proj.atk); let mult=1; let crit=false; const critChance=(base.props?.crit||0)+(dv.DEX*0.002)+(dv.INT*0.001);
-    if(proj.x>weakRect.x&&proj.x<weakRect.x+weakRect.w&&proj.y>weakRect.y&&proj.y<weakRect.y+weakRect.h){ mult+=0.5; crit=true; } if(Math.random()<critChance){ mult+=0.5; crit=true; }
-    const dInfo={impact, mult, crit, x:proj.x, y:proj.y}; proj=null; onShotEnd(dInfo);
+
+// FIXED: Animation loop
+function animate(){ 
+  cancelAnimationFrame(raf); 
+  
+  const step=(t)=>{ 
+    updatePhysics(); 
+    
+    if(shotStart){ 
+      const elapsed=Math.min(2000, t-shotStart); 
+      setRaidProgress(5+(elapsed/2000)*90); 
+    } 
+    
+    draw(); 
+    
+    // Continue animation if projectile still exists
+    if (proj) {
+      raf=requestAnimationFrame(step); 
+    }
+  }; 
+  
+  raf=requestAnimationFrame(step); 
+}
+
+// FIXED: Physics engine with proper collision detection
+function updatePhysics(){ 
+  if(!proj) return;
+
+  // Apply gravity and movement
+  proj.vy += 0.38 * proj.mass; 
+  proj.x += proj.vx; 
+  proj.y += proj.vy; 
+
+  // Floor collision
+  if(proj.y > C.height-12){ 
+    proj.y = C.height-12; 
+    proj.vy *= -0.35; 
+    proj.vx *= 0.75; 
+    
+    // Stop if too slow
+    if(Math.abs(proj.vx) < 0.4 && Math.abs(proj.vy) < 2) { 
+      onShotEnd(0); 
+      proj=null; 
+    } 
+  } 
+
+  // Wall collisions
+  if(proj.x < 0 || proj.x > C.width){ 
+    proj=null; 
+    onShotEnd(0); 
+    return; 
+  }
+
+  // Obstacle collisions
+  for(const o of obstacles){ 
+    if(proj.x > o.x && proj.x < o.x+o.w && proj.y > o.y && proj.y < o.y+o.h){ 
+      proj.vx *= -0.5; 
+      proj.vy *= -0.3; 
+    } 
+  }
+
+  // Boss collision detection
+  const bossX = C.width-90, bossY = 60, bossW = 60, bossH = 120; 
+  if(proj.x > bossX && proj.y > bossY && proj.x < bossX+bossW && proj.y < bossY+bossH){ 
+    const dv = derived();
+    const base = projectile(); 
+    const impact = Math.min(100, Math.hypot(proj.vx, proj.vy) * 2 + proj.atk); 
+    let mult = 1; 
+    let crit = false; 
+    const critChance = (base.props?.crit || 0) + (dv.DEX * 0.002) + (dv.INT * 0.001);
+
+    // Weak spot check
+    if(proj.x > weakRect.x && proj.x < weakRect.x+weakRect.w && 
+       proj.y > weakRect.y && proj.y < weakRect.y+weakRect.h){ 
+      mult += 0.5; 
+      crit = true;
+    } 
+    
+    // Critical chance
+    if(Math.random() < critChance){ 
+      mult += 0.5; 
+      crit = true;
+    }
+
+    const damageInfo = {
+      impact: Math.round(impact), 
+      mult: Math.round(mult * 10) / 10, 
+      crit, 
+      x: Math.round(proj.x), 
+      y: Math.round(proj.y)
+    };
+    
+    proj = null; 
+    onShotEnd(damageInfo);
   }
 }
-function draw(){ if(!CTX) return; CTX.fillStyle=document.documentElement.classList.contains('light')?'#eef3ff':'#0e1117'; CTX.fillRect(0,0,C.width,C.height);
-  CTX.fillStyle=document.documentElement.classList.contains('light')?'#c8d7ff':'#233042'; obstacles.forEach(o=> CTX.fillRect(o.x,o.y,o.w,o.h));
-  const bx=C.width-90,by=60,bw=60,bh=120; CTX.fillStyle=document.documentElement.classList.contains('light')?'#b95a6e':'#40222a'; CTX.fillRect(bx,by,bw,bh);
-  CTX.fillStyle=document.documentElement.classList.contains('light')?'#ff7b8b':'#d66'; CTX.fillRect(weakRect.x,weakRect.y,weakRect.w,weakRect.h);
-  const pct=Math.max(0,state.raid.bossHP/state.raid.bossHPMax); CTX.fillStyle=document.documentElement.classList.contains('light')?'#ffd0d6':'#311'; CTX.fillRect(C.width-95,40,70,10); CTX.fillStyle='#ff5a6b'; CTX.fillRect(C.width-95,40,70*pct,10);
-  if(mouse?.down){ CTX.strokeStyle=document.documentElement.classList.contains('light')?'#4e6cff':'#6ba8ff'; CTX.beginPath(); CTX.moveTo(mouse.sx,mouse.sy); CTX.lineTo(mouse.x,mouse.y); CTX.stroke();
-    const dx=mouse.sx-mouse.x, dy=mouse.sy-mouse.y; let p=Math.min(80,Math.hypot(dx,dy)); const a=Math.atan2(dy,dx); let vx=Math.cos(a)*(-p/2.1), vy=Math.sin(a)*(-p/2.1); let tx=mouse.sx, ty=mouse.sy;
-    CTX.fillStyle=document.documentElement.classList.contains('light')?'#4e6cff':'#9ad'; for(let i=0;i<20;i++){ vy+=0.38; tx+=vx; ty+=vy; CTX.fillRect(tx,ty,2,2); }
+
+// FIXED: Drawing function
+function draw(){ 
+  if(!CTX) return; 
+  
+  // Clear canvas
+  CTX.fillStyle=document.documentElement.classList.contains('light')?'#eef3ff':'#0e1117'; 
+  CTX.fillRect(0,0,C.width,C.height);
+  
+  // Draw obstacles
+  CTX.fillStyle=document.documentElement.classList.contains('light')?'#c8d7ff':'#233042'; 
+  obstacles.forEach(o=> CTX.fillRect(o.x,o.y,o.w,o.h));
+  
+  // Draw boss
+  const bx=C.width-90,by=60,bw=60,bh=120; 
+  CTX.fillStyle=document.documentElement.classList.contains('light')?'#b95a6e':'#40222a'; 
+  CTX.fillRect(bx,by,bw,bh);
+  
+  // Draw weak spot
+  CTX.fillStyle=document.documentElement.classList.contains('light')?'#ff7b8b':'#d66'; 
+  CTX.fillRect(weakRect.x,weakRect.y,weakRect.w,weakRect.h);
+  
+  // Draw boss health bar
+  const pct=Math.max(0,state.raid.bossHP/state.raid.bossHPMax); 
+  CTX.fillStyle=document.documentElement.classList.contains('light')?'#ffd0d6':'#311'; 
+  CTX.fillRect(C.width-95,40,70,10); 
+  CTX.fillStyle='#ff5a6b'; 
+  CTX.fillRect(C.width-95,40,70*pct,10);
+  
+  // Draw aiming line when mouse is down
+  if(mouse?.down){ 
+    CTX.strokeStyle=document.documentElement.classList.contains('light')?'#4e6cff':'#6ba8ff'; 
+    CTX.beginPath(); 
+    CTX.moveTo(mouse.sx,mouse.sy); 
+    CTX.lineTo(mouse.x,mouse.y); 
+    CTX.stroke();
+    
+    const dx=mouse.sx-mouse.x, dy=mouse.sy-mouse.y; 
+    let p=Math.min(80,Math.hypot(dx,dy)); 
+    const a=Math.atan2(dy,dx); 
+    let vx=Math.cos(a)*(-p/2.1), vy=Math.sin(a)*(-p/2.1); 
+    let tx=mouse.sx, ty=mouse.sy;
+    
+    CTX.fillStyle=document.documentElement.classList.contains('light')?'#4e6cff':'#9ad'; 
+    for(let i=0;i<20;i++){ 
+      vy+=0.38; 
+      tx+=vx; 
+      ty+=vy; 
+      CTX.fillRect(tx,ty,2,2); 
+    }
+    
     $('powerFill').style.width=Math.round((p/80)*100)+'%';
-  } else $('powerFill').style.width='0%';
-  if(proj){ CTX.fillStyle='#aef'; if(proj.shape==='arrow'){ CTX.fillRect(proj.x-6,proj.y-1,12,2); } else if(proj.shape==='sword'){ CTX.fillRect(proj.x-2,proj.y-8,4,16); } else if(proj.shape==='orb'){ CTX.beginPath(); CTX.arc(proj.x,proj.y,7,0,Math.PI*2); CTX.fill(); } else if(proj.shape==='dagger'){ CTX.fillRect(proj.x-2,proj.y-6,4,12); } else if(proj.shape==='shield'){ CTX.beginPath(); CTX.arc(proj.x,proj.y,8,0,Math.PI*2); CTX.fill(); } else { CTX.beginPath(); CTX.arc(proj.x,proj.y,6,0,Math.PI*2); CTX.fill(); } }
+  } else {
+    $('powerFill').style.width='0%';
+  }
+  
+  // Draw projectile if it exists
+  if(proj){ 
+    CTX.fillStyle='#aef'; 
+    if(proj.shape==='arrow'){ 
+      CTX.fillRect(proj.x-6,proj.y-1,12,2); 
+    } else if(proj.shape==='sword'){ 
+      CTX.fillRect(proj.x-2,proj.y-8,4,16); 
+    } else if(proj.shape==='orb'){ 
+      CTX.beginPath(); 
+      CTX.arc(proj.x,proj.y,7,0,Math.PI*2); 
+      CTX.fill(); 
+    } else if(proj.shape==='dagger'){ 
+      CTX.fillRect(proj.x-2,proj.y-6,4,12); 
+    } else if(proj.shape==='shield'){ 
+      CTX.beginPath(); 
+      CTX.arc(proj.x,proj.y,8,0,Math.PI*2); 
+      CTX.fill(); 
+    } else { 
+      CTX.beginPath(); 
+      CTX.arc(proj.x,proj.y,6,0,Math.PI*2); 
+      CTX.fill(); 
+    } 
+  }
 }
+
 function rng(n){ return Math.floor(Math.random()*n); }
 function pickLoot(){ const total=LOOT.reduce((a,l)=>a+l.weight,0); let r=Math.random()*total; for(const l of LOOT){ if((r-=l.weight)<=0) return l; } return LOOT[0]; }
 function toItem(baseId){ const b=SHOP.find(x=>x.id===baseId); if(!b) return null; if(b.type==='potion') return {id:'con_'+Date.now(),type:'potion',name:b.name,heal:b.heal}; return {id:'itm_'+Date.now(),name:b.name,mods:b.mods,baseId:b.id,slot:b.slot}; }
 
-function onShotEnd(info){ const d=buildDungeonList().find(x=>x.id===state.raid.dungeon); const dv=derived(); const base=projectile();
-  const stat=dv.ATK+dv.DEX*0.4+dv.INT*0.2; const impact=info?.impact||0; const mult=info?.mult||1; const dmg=Math.max(0,Math.round(impact*(stat/20)*mult - d.boss.def + (base.splash?base.splash/2:0)));
-  state.raid.bossHP=Math.max(0,state.raid.bossHP-dmg); state.raid.damageDealt+=dmg; setRaidProgress(100); setTimeout(()=>setRaidProgress(0), 450);
-  if(state.raid.bossHP<=0) finishRaid(true); save(); renderHUD();
+// FIXED: Shot end handler
+function onShotEnd(info){ 
+  const d=buildDungeonList().find(x=>x.id===state.raid.dungeon); 
+  const dv=derived(); 
+  const base=projectile();
+  
+  const stat=dv.ATK+dv.DEX*0.4+dv.INT*0.2; 
+  const impact=info?.impact||0; 
+  const mult=info?.mult||1; 
+  const dmg=Math.max(0,Math.round(impact*(stat/20)*mult - d.boss.def + (base.splash?base.splash/2:0)));
+  
+  state.raid.bossHP=Math.max(0,state.raid.bossHP-dmg); 
+  state.raid.damageDealt+=dmg; 
+  
+  setRaidProgress(100); 
+  setTimeout(()=>setRaidProgress(0), 450);
+  
+  if(state.raid.bossHP<=0) {
+    setTimeout(() => finishRaid(true), 500);
+  }
+  
+  save(); 
+  renderHUD();
+  
+  // Show damage feedback
+  if (info && info.impact > 0) {
+    const feedback = info.crit ? `CRIT! ${dmg} damage` : `${dmg} damage`;
+    toast(feedback);
+  }
 }
+
 function showEndScreen(res){ const ov=$('overlay'); const d=$('endDetails'); const lootTxt = res.loot?.length? res.loot.map(x=>x.name).join(', ') : '—';
   d.innerHTML=''; [['Outcome',res.success?'✅ Victory':'❌ Defeat'],['XP Gained',res.xp],['Gold Gained',res.gold],['Damage Dealt',res.dmg],['Shots Used',res.shots],['Party Size',res.partySize],['Loot',lootTxt]].forEach(([k,v])=> d.append(H(`<div class="item"><div>${k}</div><strong>${v}</strong></div>`)));
   ov.hidden=false; $('closeOverlay').onclick=()=>{ ov.hidden=true; };
