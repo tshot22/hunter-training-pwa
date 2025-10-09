@@ -1,16 +1,16 @@
-/* Hunter Training v4.4 (Final, PWA) - FIXED */
-console.log('[Hunter] boot v4.4.1 - RAID FIXED');
+/* Hunter Training v4.4 (Final, PWA) - WITH DAILY REWARDS */
+console.log('[Hunter] boot v4.4.1 - DAILY REWARDS ADDED');
 const $=id=>document.getElementById(id), H=html=>{const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstChild};
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 const RESTORE_HOUR=2, XP_PER_10_MIN=15, EXTRA_SHOT_COST_AP=1000, STALE_RAID_MS=10*60*1000;
-const CACHE='hunter-v4.4-4'; // increment this
+const CACHE='hunter-v4.4-5'; // increment this
 
 (function(){const t=localStorage.getItem('theme')||'dark'; if(t==='light') document.documentElement.classList.add('light');})();
 const LOAD=()=>{for(const k of ['htv3full','htv3full_fixed','htv4']){const v=localStorage.getItem(k);if(v){k!=='htv4'&&localStorage.setItem('htv4',v);try{return JSON.parse(v)}catch{}}}return null}
 let state=Object.assign({
   name:'Hunter',class:'Unassigned',level:1,xp:0,xpToNext:120,points:0,
   stats:{STR:1,VIT:1,SPD:1,DEX:1,INT:1,SOC:0},hp:15,
-  today:{date:today(),steps:0,mins:0,water:0},
+  today:{date:today(),steps:0,mins:0,water:0,completedQuests:[]},
   gold:0, ap:0,
   equips:{weapon:null,boots:null,tome:null,banner:null},
   inventory:[],consumables:[],
@@ -81,6 +81,9 @@ function buildUI(){const r=$('appRoot'); r.innerHTML=`
     <div>Steps today: <strong id="todaySteps">0</strong></div>
     <div>Workout min: <strong id="todayMins">0</strong></div>
     <div>Water: <strong id="todayWater">0</strong> / <span id="waterGoal">2000</span> ml</div>
+    <div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border);">
+      <div class="muted small">💡 Complete daily tasks for Gold & XP!</div>
+    </div>
   </div>
 </section>
 
@@ -263,13 +266,186 @@ function renderCurrentEquipment() {
     });
 }
 
-// --- Quests
-function renderQuests(){ const list=$('questList'); if(!list) return; list.innerHTML='';
+// --- UPDATED: Quests with Gold & XP Rewards
+function renderQuests(){ 
+  const list=$('questList'); 
+  if(!list) return; 
+  list.innerHTML='';
+  
   const base=Math.max(6000,6000+state.level*200), mins=20+Math.floor(state.level/2)*5, water=Number(localStorage.getItem('waterGoal')||2000);
-  [{name:`Walk ${base} steps`,goal:base,progress:state.today.steps,xp:40,gold:20},{name:`Train ${mins} min`,goal:mins,progress:state.today.mins,xp:40,gold:20},{name:`Drink ${water} ml`,goal:water,progress:state.today.water,xp:20,gold:10}].forEach(q=>{ const pct=Math.min(100,Math.round((q.progress/q.goal)*100)); const el=H(`<div class="item"><div style="flex:1"><div>${q.name}</div><div class="progress" style="margin-top:6px"><div class="progress-fill" style="width:${pct}%"></div></div><div class="muted small">${q.progress}/${q.goal} • ${q.xp} XP • ${q.gold} gold</div></div></div>`); list.append(el); });
-  const nn=state.nonneg||{}; const nnItems=[{k:'pushups', label:`Push-ups ${nn.pushups||0}`, goal:nn.pushups||0},{k:'squats', label:`Squats ${nn.squats||0}`, goal:nn.squats||0},{k:'walk_km', label:`Walk ${nn.walk_km||0} km`, goal:(nn.walk_km||0)*1000, alt:true},{k:'run_km', label:`Run ${nn.run_km||0} km`, goal:(nn.run_km||0)*1000, alt:true}].filter(x=>x.goal>0);
-  nnItems.forEach(q=>{ const progress=q.alt? state.today.steps : 0; const pct=q.goal? Math.min(100,Math.round((progress/q.goal)*100)) : 0; const el=H(`<div class="item"><div style="flex:1"><div>🏁 ${q.label} (Non-negotiable)</div><div class="progress" style="margin-top:6px"><div class="progress-fill" style="width:${pct}%"></div></div><div class="muted small">${progress}/${q.goal||0}</div></div><button class="tiny" data-mark="${q.k}">Mark done</button></div>`); list.append(el); });
-  list.querySelectorAll('[data-mark]').forEach(b=> b.onclick=()=>{ b.disabled=true; toast('Marked complete'); });
+  
+  const quests = [
+    {id:'steps', name:`Walk ${base} steps`, goal:base, progress:state.today.steps, xp:40, gold:20},
+    {id:'workout', name:`Train ${mins} min`, goal:mins, progress:state.today.mins, xp:40, gold:20}, 
+    {id:'hydration', name:`Drink ${water} ml`, goal:water, progress:state.today.water, xp:20, gold:10}
+  ];
+  
+  quests.forEach(q=>{ 
+    const pct=Math.min(100,Math.round((q.progress/q.goal)*100)); 
+    const isCompleted = state.today.completedQuests?.includes(q.id) || false;
+    const canClaim = !isCompleted && q.progress >= q.goal;
+    
+    const el=H(`<div class="item ${isCompleted ? 'completed' : ''}">
+      <div style="flex:1">
+        <div>${q.name} ${isCompleted ? '✅' : ''}</div>
+        <div class="progress" style="margin-top:6px">
+          <div class="progress-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="muted small">${q.progress}/${q.goal} • ${q.xp} XP • ${q.gold} gold</div>
+      </div>
+      <button class="tiny ${isCompleted ? 'ghost' : ''}" data-claim="${q.id}" ${!canClaim ? 'disabled' : ''}>
+        ${isCompleted ? 'Claimed' : 'Claim Reward'}
+      </button>
+    </div>`); 
+    list.append(el); 
+  });
+  
+  const nn=state.nonneg||{}; 
+  const nnItems=[
+    {k:'pushups', label:`Push-ups ${nn.pushups||0}`, goal:nn.pushups||0},
+    {k:'squats', label:`Squats ${nn.squats||0}`, goal:nn.squats||0},
+    {k:'walk_km', label:`Walk ${nn.walk_km||0} km`, goal:(nn.walk_km||0)*1000, alt:true},
+    {k:'run_km', label:`Run ${nn.run_km||0} km`, goal:(nn.run_km||0)*1000, alt:true}
+  ].filter(x=>x.goal>0);
+  
+  nnItems.forEach(q=>{ 
+    const progress=q.alt? state.today.steps : 0; 
+    const pct=q.goal? Math.min(100,Math.round((progress/q.goal)*100)) : 0; 
+    const isCompleted = state.today.completedQuests?.includes(`nn_${q.k}`) || false;
+    const canClaim = !isCompleted && progress >= q.goal;
+    
+    const el=H(`<div class="item ${isCompleted ? 'completed' : ''}">
+      <div style="flex:1">
+        <div>🏁 ${q.label} (Non-negotiable) ${isCompleted ? '✅' : ''}</div>
+        <div class="progress" style="margin-top:6px">
+          <div class="progress-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="muted small">${progress}/${q.goal||0}</div>
+      </div>
+      <button class="tiny ${isCompleted ? 'ghost' : ''}" data-claim="nn_${q.k}" ${!canClaim ? 'disabled' : ''}>
+        ${isCompleted ? 'Claimed' : 'Claim Reward'}
+      </button>
+    </div>`); 
+    list.append(el); 
+  });
+  
+  // Add event listeners for claim buttons
+  list.querySelectorAll('[data-claim]').forEach(btn => {
+    btn.onclick = () => {
+      const questId = btn.getAttribute('data-claim');
+      claimQuestReward(questId);
+    };
+  });
+}
+
+// --- NEW: Claim Quest Rewards
+function claimQuestReward(questId) {
+  let xpReward = 0;
+  let goldReward = 0;
+  
+  // Determine rewards based on quest type
+  if (questId === 'steps') {
+    xpReward = 40;
+    goldReward = 20;
+  } else if (questId === 'workout') {
+    xpReward = 40;
+    goldReward = 20;
+  } else if (questId === 'hydration') {
+    xpReward = 20;
+    goldReward = 10;
+  } else if (questId.startsWith('nn_')) {
+    // Non-negotiable quests give better rewards
+    xpReward = 60;
+    goldReward = 30;
+  }
+  
+  // Add rewards
+  gainXP(xpReward);
+  state.gold += goldReward;
+  
+  // Mark quest as completed
+  if (!state.today.completedQuests) {
+    state.today.completedQuests = [];
+  }
+  state.today.completedQuests.push(questId);
+  
+  save();
+  render();
+  
+  toast(`🎉 Quest completed! +${xpReward} XP, +${goldReward} Gold`);
+}
+
+// --- UPDATED: Activity logging with auto-rewards
+function logActivity(type, value) {
+  const oldSteps = state.today.steps;
+  const oldMins = state.today.mins;
+  const oldWater = state.today.water;
+  
+  if (type === 'steps') {
+    state.today.steps += value;
+    state.ap += value; // Still get AP for steps
+    
+    // Auto-complete steps quest if goal reached
+    const stepsGoal = Math.max(6000,6000+state.level*200);
+    if (oldSteps < stepsGoal && state.today.steps >= stepsGoal && !state.today.completedQuests?.includes('steps')) {
+      setTimeout(() => {
+        claimQuestReward('steps');
+      }, 500);
+    }
+    
+  } else if (type === 'workout') {
+    state.today.mins += value;
+    const chunks = Math.floor(value / 10);
+    if (chunks > 0) gainXP(chunks * XP_PER_10_MIN);
+    
+    // Auto-complete workout quest if goal reached
+    const minsGoal = 20 + Math.floor(state.level/2)*5;
+    if (oldMins < minsGoal && state.today.mins >= minsGoal && !state.today.completedQuests?.includes('workout')) {
+      setTimeout(() => {
+        claimQuestReward('workout');
+      }, 500);
+    }
+    
+  } else if (type === 'water') {
+    state.today.water += value;
+    
+    // Auto-complete hydration quest if goal reached
+    const waterGoal = Number(localStorage.getItem('waterGoal') || 2000);
+    if (oldWater < waterGoal && state.today.water >= waterGoal && !state.today.completedQuests?.includes('hydration')) {
+      setTimeout(() => {
+        claimQuestReward('hydration');
+      }, 500);
+    }
+  }
+  
+  save();
+  render();
+}
+
+// --- UPDATED: Gain XP with Health Potion Reward
+function gainXP(n){ 
+  const oldLevel = state.level;
+  state.xp += n; 
+  
+  while(state.xp >= state.xpToNext){ 
+    state.xp -= state.xpToNext; 
+    state.level += 1; 
+    state.points += 3; 
+    state.xpToNext = Math.round(state.xpToNext * 1.2 + 35);
+    
+    // Give health potion on level up
+    state.consumables.push({
+      id: 'con_' + Date.now(),
+      type: 'potion',
+      name: 'Level Up Health Potion',
+      heal: 30
+    });
+    
+    toast(`🎉 Level ${state.level}! +3 Stat Points + Health Potion!`);
+  }
+  
+  save(); 
+  render(); 
 }
 
 // --- Render
@@ -304,7 +480,6 @@ function render(){ const d=derived();
   
   renderQuests(); renderDungeons(); renderShop(); renderInventory(); renderConsumables(); renderFriends();
 }
-function gainXP(n){ state.xp+=n; while(state.xp>=state.xpToNext){ state.xp-=state.xpToNext; state.level+=1; state.points+=3; state.xpToNext=Math.round(state.xpToNext*1.2+35);} save(); render(); }
 
 // --- Shop / Inventory
 function renderShop(){ const L=$('shopList'); if(!L) return; L.innerHTML=''; SHOP.forEach(it=>{ const mods=it.mods?Object.entries(it.mods).map(([k,v])=>`${k}+${v}`).join(', '):''; const tag=it.rar?`<span class="muted small">[${it.rar}]</span>`:''; const right=it.type==='potion'?`${it.price} gold • heals ${it.heal}`:`${it.price} gold`;
@@ -678,7 +853,7 @@ function finishRaid(ok){ const d=buildDungeonList().find(x=>x.id===state.raid.du
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active')); document.querySelector('.tab[data-tab="dungeon"]').classList.add('active'); $('dungeon').classList.add('active'); showEndScreen(summary);
 }
 
-// --- Inputs & settings
+// --- UPDATED: Input handlers with auto-rewards
 function hookInputs(){ 
   document.querySelectorAll('.tab').forEach(b=> b.onclick=()=>{ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active')); b.classList.add('active'); $(b.dataset.tab).classList.add('active'); });
   
@@ -690,9 +865,30 @@ function hookInputs(){
     };
   });
   
-  $('addStepsBtn').onclick=()=>{ const n=+($('stepsInput').value||0); state.today.steps+=n; state.ap+=n; save(); render(); toast('Steps logged'); };
-  $('addWorkoutBtn').onclick=()=>{ const m=+($('minutesInput').value||0); state.today.mins+=m; const chunks=Math.floor(m/10); if(chunks>0) gainXP(chunks*XP_PER_10_MIN); save(); render(); toast('Workout logged'); };
-  $('addWaterBtn').onclick=()=>{ state.today.water+=+($('waterInput').value||0); save(); render(); toast('Hydration logged'); };
+  $('addStepsBtn').onclick=()=>{ 
+    const n=+($('stepsInput').value||0); 
+    if (n > 0) {
+      logActivity('steps', n);
+      toast('Steps logged! +' + n + ' AP');
+    }
+  };
+  
+  $('addWorkoutBtn').onclick=()=>{ 
+    const m=+($('minutesInput').value||0); 
+    if (m > 0) {
+      logActivity('workout', m);
+      toast('Workout logged!');
+    }
+  };
+  
+  $('addWaterBtn').onclick=()=>{ 
+    const w=+($('waterInput').value||0); 
+    if (w > 0) {
+      logActivity('water', w);
+      toast('Hydration logged!');
+    }
+  };
+  
   $('addFriendBtn').onclick=()=>{ const name=($('friendSearch').value||'').trim(); if(!name) return; const id='u_'+name.toLowerCase().replace(/\W+/g,''); if(state.friends.some(f=>f.id===id)) return toast('Already friends'); state.friends.push({id,name,autoRaid:false}); save(); render(); toast('Friend added'); };
   $('saveName').onclick=()=>{ state.name=$('nameInput').value||'Hunter'; save(); render(); toast('Name saved'); };
   $('saveClass').onclick=()=>{ state.class=$('classSelect').value||'Unassigned'; save(); render(); toast('Class saved'); };
@@ -705,7 +901,28 @@ function hookInputs(){
 }
 
 // --- Daily restore & guards
-function maybeRestore(){ const k=today(); if(state.meta.lastRestore===k) return; if(new Date().getHours()>=RESTORE_HOUR){ state.hp=derived().HP; state.meta.lastRestore=k; save(); render(); toast('HP restored'); } }
+function maybeRestore(){ 
+  const k=today(); 
+  if(state.meta.lastRestore===k) return; 
+  if(new Date().getHours()>=RESTORE_HOUR){ 
+    state.hp=derived().HP; 
+    state.meta.lastRestore=k; 
+    
+    // Reset daily quests
+    state.today = {
+      date: k,
+      steps: 0,
+      mins: 0, 
+      water: 0,
+      completedQuests: []
+    };
+    
+    save(); 
+    render(); 
+    toast('Daily reset! HP restored, new quests available!');
+  } 
+}
+
 function staleRaidGuard(){ if(state.raid?.active){ const age=Date.now()-(state.raid.startedAt||0); if(isNaN(age) || age>STALE_RAID_MS){ state.raid={active:false,dungeon:null,shots:0,maxShots:5,bossHP:0,bossHPMax:0,damageDealt:0,startedAt:0}; save(); } } }
 
 // --- PWA
