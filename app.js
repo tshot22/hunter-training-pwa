@@ -10,7 +10,7 @@ const LOAD=()=>{for(const k of ['htv3full','htv3full_fixed','htv4']){const v=loc
 let state=Object.assign({
   name:'Hunter',class:'Unassigned',level:1,xp:0,xpToNext:120,points:0,
   stats:{STR:1,VIT:1,SPD:1,DEX:1,INT:1,SOC:0},hp:15,
-  today:{date:today(),steps:0,mins:0,water:0,completedQuests:[]},
+  today:{date:today(),steps:0,mins:0,water:0,pushups:0,squats:0,completedQuests:[]},
   gold:0, ap:0,
   equips:{weapon:null,boots:null,tome:null,banner:null},
   inventory:[],consumables:[],
@@ -24,7 +24,8 @@ const save=()=> localStorage.setItem('htv4', JSON.stringify(state));
 function classMods(){const m={STR:0,VIT:0,SPD:0,DEX:0,INT:0,SOC:0};switch(state.class){case'Warrior':m.STR+=2;break;case'Knight':m.VIT+=2;break;case'Mage':m.INT+=2;break;case'Archer':m.DEX+=2;m.SPD+=1;break;case'Assassin':m.DEX+=1;m.INT+=1;break;case'Healer':m.SOC+=2;m.INT+=1;break;}return m;}
 function equippedMods(){const m={STR:0,VIT:0,SPD:0,DEX:0,INT:0,SOC:0};Object.values(state.equips).forEach(id=>{const it=state.inventory.find(x=>x.id===id); if(it?.mods) for(const k in it.mods) m[k]=(m[k]||0)+it.mods[k];}); return m;}
 function derived(){const s=state.stats, em=equippedMods(), cm=classMods();const STR=s.STR+(em.STR||0)+(cm.STR||0), VIT=s.VIT+(em.VIT||0)+(cm.VIT||0), SPD=s.SPD+(em.SPD||0)+(cm.SPD||0), DEX=s.DEX+(em.DEX||0)+(cm.DEX||0), INT=s.INT+(em.INT||0)+(cm.INT||0), SOC=s.SOC+(em.SOC||0)+(cm.SOC||0); const HP=15+VIT*10+Math.floor(STR*2), MP=5+INT*5, ATK=Math.floor(STR*1.6+DEX*0.6), DEF=Math.floor(VIT*1.3+STR*0.4); return {STR,VIT,SPD,DEX,INT,SOC,HP,MP,ATK,DEF};}
-function setText(id,v){const el=$(id); if(el) el.textContent=String(v);} function setWidth(id,p){const el=$(id); if(el) el.style.width=Math.max(0,Math.min(100,p))+'%';}
+function setText(id,v){const el=$(id); if(el) el.textContent=String(v);}
+function classAvatar(){ switch(state.class){ case 'Warrior': return '🗡️'; case 'Knight': return '🛡️'; case 'Mage': return '🪄'; case 'Archer': return '🏹'; case 'Assassin': return '🗡️'; case 'Healer': return '✨'; default: return '🙂'; } } function setWidth(id,p){const el=$(id); if(el) el.style.width=Math.max(0,Math.min(100,p))+'%';}
 function toast(msg){const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),1600);}
 
 function buildUI(){const r=$('appRoot'); r.innerHTML=`
@@ -91,6 +92,9 @@ function buildUI(){const r=$('appRoot'); r.innerHTML=`
   <div class="title">Steps → AP</div><div class="row"><input id="stepsInput" class="input" type="number"><button id="addStepsBtn" class="btn">Add</button></div>
   <div class="title" style="margin-top:12px">Log Workout</div><div class="row"><select id="workoutType" class="input"><option value="cardio">Cardio</option><option value="strength">Strength</option><option value="mobility">Mobility/Yoga</option></select><input id="minutesInput" class="input" type="number" placeholder="Minutes"><button id="addWorkoutBtn" class="btn">Log</button></div>
   <div class="title" style="margin-top:12px">Hydration</div><div class="row"><input id="waterInput" class="input" type="number" placeholder="ml"><button id="addWaterBtn" class="btn">Add</button></div>
+  <div class="title" style="margin-top:12px">Log Non‑negotiables</div>
+  <div class="row"><input id="pushupsInput" class="input" type="number" placeholder="Push-ups"><button id="addPushupsBtn" class="btn">Add</button></div>
+  <div class="row" style="margin-top:6px"><input id="squatsInput" class="input" type="number" placeholder="Squats"><button id="addSquatsBtn" class="btn">Add</button></div>
 </div></section>
 
 <section id="quests" class="panel"><div class="card"><div class="title">Daily Quests</div><div id="questList" class="list"></div></div></section>
@@ -164,6 +168,13 @@ function buildUI(){const r=$('appRoot'); r.innerHTML=`
 
 // --- Data tables
 const SHOP=[
+  {id:'steel_sword',name:'Steel Sword',price:260,slot:'weapon',rar:'uncommon',mods:{STR:4,DEX:1}},
+  {id:'longbow',name:'Longbow',price:280,slot:'weapon',rar:'uncommon',mods:{DEX:4,SPD:1}},
+  {id:'wizard_staff',name:'Wizard Staff',price:300,slot:'weapon',rar:'uncommon',mods:{INT:4}},
+  {id:'leather_boots_plus',name:'Leather Boots +',price:220,slot:'boots',rar:'uncommon',mods:{SPD:4}},
+  {id:'tome_of_insight',name:'Tome of Insight',price:320,slot:'tome',rar:'uncommon',mods:{INT:4,SOC:1}},
+  {id:'banner_of_valor',name:'Banner of Valor',price:280,slot:'banner',rar:'uncommon',mods:{STR:2,SOC:2}},
+
   {id:'iron_sword',name:'Iron Sword',price:120,slot:'weapon',rar:'common',mods:{STR:2,DEX:1}},
   {id:'oak_bow',name:'Oak Bow',price:130,slot:'weapon',rar:'common',mods:{DEX:2,SPD:1}},
   {id:'apprentice_staff',name:'Apprentice Staff',price:140,slot:'weapon',rar:'common',mods:{INT:2}},
@@ -309,7 +320,7 @@ function renderQuests(){
   ].filter(x=>x.goal>0);
   
   nnItems.forEach(q=>{ 
-    const progress=q.alt? state.today.steps : 0; 
+    const progress=(q.k==='pushups')? (state.today.pushups||0) : (q.k==='squats'? (state.today.squats||0) : (q.alt? state.today.steps : 0)); 
     const pct=q.goal? Math.min(100,Math.round((progress/q.goal)*100)) : 0; 
     const isCompleted = state.today.completedQuests?.includes(`nn_${q.k}`) || false;
     const canClaim = !isCompleted && progress >= q.goal;
@@ -453,6 +464,7 @@ function setRaidProgress(p){ const el=$('raidProgress'); if(el) el.style.width=M
 function render(){ const d=derived();
   setText('GOLD_HDR',state.gold); setText('AP_HDR',state.ap); setText('HP_HDR',state.hp);
   setText('charName',state.name||'Hunter'); setText('charClass',`Class: ${state.class}`);
+  const aw=$('avatarWrap'); if(aw){ aw.setAttribute('data-emoji', classAvatar()); aw.title=state.class; }
   setWidth('xpBar', Math.round((state.xp/state.xpToNext)*100));
   setText('level',state.level); setText('xp',state.xp); setText('xpToNext',state.xpToNext);
   setText('HP_TXT',`${state.hp}/${d.HP}`); const hpPct=Math.round((state.hp/d.HP)*100); const hpBar=document.getElementById('hpbar_fill'); if(hpBar) hpBar.style.width=hpPct+'%';
@@ -587,7 +599,7 @@ function setupCanvas(){
   draw(); 
 }
 
-function renderHUD(){ const hud=$('raidHUD'); if(!hud) return; hud.textContent=`Shots: ${state.raid.shots}/${state.raid.maxShots} • Boss HP: ${state.raid.bossHP}/${state.raid.bossHPMax}`; }
+function renderHUD(){ const hud=$('raidHUD'); if(!hud) return; const enemy = state.raid.enemies ? state.raid.enemies[state.raid.stage] : null; const label = enemy? (enemy.name) : 'Boss'; hud.textContent=`Shots: ${state.raid.shots}/${state.raid.maxShots} • ${label} HP: ${state.raid.bossHP}/${state.raid.bossHPMax} • Stage ${ (state.raid.stage||0)+1 }/3`; }
 
 // FIXED: Launch function with proper physics
 function launch(){ 
@@ -909,13 +921,7 @@ function maybeRestore(){
     state.meta.lastRestore=k; 
     
     // Reset daily quests
-    state.today = {
-      date: k,
-      steps: 0,
-      mins: 0, 
-      water: 0,
-      completedQuests: []
-    };
+    state.today = { date: k, steps: 0, mins: 0, water: 0, pushups: 0, squats: 0, completedQuests: [] };
     
     save(); 
     render(); 
