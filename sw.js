@@ -1,5 +1,5 @@
-// Hunter Training v4.4 - Service Worker
-const CACHE = 'hunter-v4.4-6';  // Increment for updates
+// Change this line in sw.js
+const CACHE = 'hunter-v4.5-1';  // Updated for new features
 const ASSETS = [
   './',
   './index.html',
