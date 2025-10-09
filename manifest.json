@@ -9,6 +9,8 @@
   "theme_color": "#0f1115",
   "orientation": "portrait",
   "categories": ["health", "games", "productivity"],
+  "prefer_related_applications": false,
+  "related_applications": [],
   "icons": [
     {
       "src": "assets/icon-72x72.png",
@@ -77,6 +79,47 @@
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Log Workout",
+      "short_name": "Workout",
+      "description": "Quickly log a workout session",
+      "url": "./?log=workout",
+      "icons": [
+        {
+          "src": "assets/icon-96x96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Enter Dungeon",
+      "short_name": "Dungeon", 
+      "description": "Start a raid battle",
+      "url": "./?tab=dungeon",
+      "icons": [
+        {
+          "src": "assets/icon-96x96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Daily Quests",
+      "short_name": "Quests",
+      "description": "Check daily quest progress",
+      "url": "./?tab=quests",
+      "icons": [
+        {
+          "src": "assets/icon-96x96.png", 
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }
